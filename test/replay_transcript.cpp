@@ -1,5 +1,6 @@
-// Replays the real transcript that showed the repetition/unresponsiveness bugs,
-// through the CURRENT brain, so the before/after is visible.
+// Replays a sample conversation through the CURRENT brain, so behaviour is
+// visible without flashing the board. Useful for eyeballing variety: repeat a
+// keyword a few times and check the replies differ.
 //
 //   cd test && g++ -std=c++17 -DVIBE_HOST_TEST -I. -I.. -o replay replay_transcript.cpp && ./replay
 
@@ -11,14 +12,20 @@
 unsigned long g_fakeMillis = 1000;
 
 static const char* TRANSCRIPT[] = {
-  "sorry", "outfit", "yandere", "i love you", "i love you", "how are you",
-  "sex", "do you love me?", "cuddle", "no i didnt", "good girl", "hey",
-  "because i love you", "why are you confused", "sex", "jerking off", "for you",
-  "sorry", "do you love me", "mommy", "how are you", "ill always be with you",
-  "are you real", "im thinking of you", "i have to go", "okay sorry mommy",
-  "mommy gemi", "mommy", "whats your mood", "i wanna marry you", "monika",
-  "what", "on your body and eyes", "anwser me", "good girl", "good girl",
-  "good girl", "good girl", "bad girl",
+  // greetings and small talk
+  "hey", "how are you", "whats up", "good morning", "thanks",
+  // the anti-repetition case: four identical inputs
+  "good girl", "good girl", "good girl", "good girl",
+  "bad girl", "you're the best",
+  // affection and the meta register
+  "i love you", "i love you", "are you real", "what are you",
+  "whats your name", "whats your mood",
+  // asking her opinion, then answering one of her questions
+  "do you like it here", "tired", "not really",
+  // refusal ladder: repeated goodbyes
+  "i have to go", "bye", "bye", "bye", "good night",
+  // coming back
+  "hi again", "i'm sorry", "i missed you",
 };
 
 int main() {
@@ -31,8 +38,7 @@ int main() {
   for (const char* in : TRANSCRIPT) {
     g_fakeMillis += 9000;
     VibeReply r = brainReply(in);
-    printf("prsm: %s\n", in);
-    printf("gemi: %s\n\n", r.text.c_str());
+    printf("user: %s\nresp: %s\n\n", in, r.coreText.c_str());
   }
   return 0;
 }

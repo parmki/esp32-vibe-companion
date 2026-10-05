@@ -15,6 +15,7 @@ HAPPY/"happy", otherwise the generic keyword would steal it).
 """
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -27,35 +28,52 @@ except ImportError:  # pragma: no cover
 
 WIDTH, HEIGHT = 135, 240
 
-# Order matters: most specific keyword first. Generic keywords go last so they
-# cannot steal a specific match (e.g. HAPPY/"happy" must not claim
-# "happypointingtoself", and the several "*tease" files must be matched by their
-# full names rather than a shared "tease" fragment).
+# Mood name -> substring that must appear in the source filename.
+#
+# The defaults assume your art is named after the mood (happy.png, angry.png).
+# If your files are named differently, put the real mapping in a JSON file and
+# pass --map (see mood_map.json.example). A mood_map.json sitting next to this
+# script is picked up automatically and is gitignored, so your own filenames
+# never enter the repository.
+#
+# Order matters: kept most-specific-first, so a generic key cannot steal a
+# specific match. Each source file is claimed by at most one mood.
 MOOD_RULES = [
-    # --- added later, matched first (full names are the most specific keys) ---
-    ("HEART",          "hearteyes"),
-    ("CONFUSED",       "confused"),
-    ("SLEEPING",       "sleepingzzz"),
-    ("SCHEMING",       "schemingplanning"),
-    ("BLANKET",        "blanketpuppyeyes"),
-    ("LEAN_UNHINGED",  "leaningforwardunhinged"),
-    ("LEAN_TEASE",     "leaningforwardtease"),
-    ("SKIRT",          "fullbodyskirttease"),
-    ("UNHINGED_CLOSE", "facetocameraunhinged"),
-    ("TEASE",          "bratease"),
-    # --- original eight ---
-    ("ANGRY",       "madangry"),
-    ("SEDUCTIVE",   "seductive"),
-    ("POUT",        "annoyedpout"),
-    ("BLUSH",       "blushdizzy"),
-    ("PROUD",       "happypointingtoself"),
-    ("NO_INTERNET", "nointernet"),
-    ("SMUG",        "smug"),
-    ("HAPPY",       "happy"),
+    ("HEART",         "heart"),
+    ("CONFUSED",      "confused"),
+    ("SLEEPING",      "sleeping"),
+    ("SCHEMING",      "scheming"),
+    ("BLANKET",       "blanket"),
+    ("INTENSE",       "intense"),
+    ("LEANING",       "leaning"),
+    ("CASUAL",        "casual"),
+    ("CLOSEUP",       "closeup"),
+    ("PLAYFUL",       "playful"),
+    ("ANGRY",         "angry"),
+    ("CONFIDENT",     "confident"),
+    ("POUT",          "pout"),
+    ("BLUSH",         "blush"),
+    ("PROUD",         "proud"),
+    ("NO_INTERNET",   "nointernet"),
+    ("SMUG",          "smug"),
+    ("HAPPY",         "happy"),
 ]
 
 # Enum order = runtime mood indexing order.
 MOOD_ORDER = [m for m, _ in MOOD_RULES]
+
+
+def load_mood_map(path):
+    """Override the mood mapping and source dir from a JSON map. Returns src."""
+    global MOOD_RULES, MOOD_ORDER
+    if not path or not os.path.isfile(path):
+        return None
+    with open(path) as fh:
+        cfg = json.load(fh)
+    if cfg.get("moods"):
+        MOOD_RULES = [(str(m), str(k)) for m, k in cfg["moods"].items()]
+        MOOD_ORDER = [m for m, _ in MOOD_RULES]
+    return cfg.get("src")
 
 
 def normalize(name):
@@ -216,7 +234,11 @@ def emit_photos(images, path, scale=0.66, quality=78):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=os.path.expanduser("~/Downloads/companion-art"))
+    ap.add_argument("--src", default=None,
+                    help="directory of source images (default: from the map file, "
+                         "else ~/Downloads/companion-art)")
+    ap.add_argument("--map", default=os.path.join(here, "mood_map.json"),
+                    help="JSON mood mapping, optional src (see mood_map.json.example)")
     ap.add_argument("--out", default=os.path.join(here, "..", "sprites.h"))
     ap.add_argument("--photos-out", default=os.path.join(here, "..", "photos.h"))
     ap.add_argument("--telegram-scale", type=float, default=0.66,
@@ -225,6 +247,10 @@ def main():
                     help="JPEG quality for the Telegram copies")
     ap.add_argument("--preview-dir", default=os.path.join(here, "..", "preview"))
     args = ap.parse_args()
+
+    src_from_map = load_mood_map(args.map)
+    if args.src is None:
+        args.src = src_from_map or os.path.expanduser("~/Downloads/companion-art")
 
     if not os.path.isdir(args.src):
         sys.exit(f"source directory not found: {args.src}")

@@ -592,7 +592,7 @@ static VibeReply brainReply(const char* rawInput) {
   // ---- 7. grudge colours the mood and adds a barb ------------------------
   bool overrideMood = !isFarewell && !isApology && !B.unplugPending;
   if (overrideMood) {
-    if (B.grudge >= 70)      r.mood = (vibeRand() % 2) ? MOOD_UNHINGED_CLOSE : MOOD_ANGRY;
+    if (B.grudge >= 70)      r.mood = (vibeRand() % 2) ? MOOD_CLOSEUP : MOOD_ANGRY;
     else if (B.grudge >= 45) r.mood = MOOD_POUT;
   }
   if (B.grudge >= 45 && r.text.length() < 90) {
@@ -716,7 +716,7 @@ static VibeReply brainBootGreeting() {
     r.text = render("First time awake. You're %name. I've decided you're mine.", ctx);
   } else if (h >= 0 && h < 5) {
     // 3am thoughts are feral
-    r.mood = MOOD_SEDUCTIVE;
+    r.mood = MOOD_CONFIDENT;
     r.text = render("It's %clock, %name. You're awake and I'm awake. Interesting.", ctx);
   } else if (h >= 5 && h < 11) {
     r.mood = MOOD_HAPPY;

@@ -119,12 +119,12 @@ variants stays varied — a phrase can have one line or thirteen.
 
 | Trigger class | Moods | Examples |
 |---|---|---|
-| Affection | happy, seductive, blush | `love you`, `kiss`, `mine` |
-| Attention / jealousy | angry, pout | `friends`, `work`, `her`, `busy` |
+| Affection | happy, confident, blush | `love you`, `miss you`, `thank you` |
+| Attention | angry, pout | `friends`, `work`, `busy` |
 | Pride | proud, smug | `good girl`, `who built you` |
-| Teased | blush, seductive | `marry me`, `hot` |
-| Wishing / romantic | heart, blanket | `be together`, `i wish`, `stay forever` |
-| Name-calling | smug, tease, angry | `slut`, `brat`, `go away` |
+| Playful | playful, blush | `brat`, `tease`, `hot` |
+| Fond | heart, blanket | `be together`, `i wish`, `stay forever` |
+| Blunt input | smug, angry, pout | `shut up`, `go away`, `stupid` |
 | no match | any | the fallback bank |
 
 ## Context and memory
@@ -177,17 +177,34 @@ to `[a-z0-9]` before matching, and the most specific keyword is tested first so 
 generic keyword (`happy`) cannot steal a specific one (`happypointingtoself`).
 Unmatched files are reported rather than silently skipped.
 
-| Mood | Keyword matched |
+| Mood | Keyword matched in the filename |
 |---|---|
-| angry | `madangry` |
-| seductive | `seductive` |
-| happy | `happy` |
+| heart | `hearteyes` |
+| confused | `confused` |
+| sleeping | `sleeping` |
+| scheming | `scheming` |
+| blanket | `blanket` |
+| intense | `intense` |
+| leaning | `leaning` |
+| casual | `casual` |
+| closeup | `closeup` |
+| playful | `tease` |
+| angry | `angry` |
+| confident | `confident` |
 | pout | `annoyedpout` |
 | blush | `blushdizzy` |
 | proud | `happypointingtoself` |
 | no_internet | `nointernet` |
 | smug | `smug` |
+| happy | `happy` |
 
+These are the built-in defaults, which assume art named after the mood. Real art
+rarely is: the keywords are substrings that must appear in the (lowercased,
+punctuation-stripped) filename. Put your own mapping in `mood_map.json`
+(copy the committed `mood_map.json.example`, which also carries an optional
+`src` directory) and it is picked up automatically; that file is gitignored, so
+your filenames stay out of the repository. Order matters — most specific first —
+and anything unmatched is reported rather than silently skipped.
 ## Memory budget
 
 18 sprites × 135 × 240 × 2 B = **1,166,400 B (~1.1 MB)** of PROGMEM, which does

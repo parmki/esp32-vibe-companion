@@ -22,7 +22,7 @@ static int failures = 0;
 static const char* moodStr(Mood m) {
   switch (m) {
     case MOOD_ANGRY:       return "ANGRY";
-    case MOOD_SEDUCTIVE:   return "SEDUCTIVE";
+    case MOOD_CONFIDENT:   return "CONFIDENT";
     case MOOD_HAPPY:       return "HAPPY";
     case MOOD_POUT:        return "POUT";
     case MOOD_BLUSH:       return "BLUSH";
@@ -97,8 +97,8 @@ int main() {
   check(everMood("hi", MOOD_HAPPY),                    "\"hi\" -> HAPPY");
   check(everMood("hello darling", MOOD_BLUSH),          "\"hello darling\" -> BLUSH");
   check(everMood("i love you", MOOD_BLUSH),             "\"i love you\" -> BLUSH (phrase beats \"love\")");
-  check(everMood("you are mine", MOOD_SEDUCTIVE),       "\"you are mine\" -> SEDUCTIVE");
-  check(everMood("kiss me", MOOD_SEDUCTIVE),            "\"kiss me\" -> SEDUCTIVE");
+  check(everMood("you are mine", MOOD_CONFIDENT),       "\"you are mine\" -> CONFIDENT");
+  check(everMood("kiss me", MOOD_CONFIDENT),            "\"kiss me\" -> CONFIDENT");
 
   check(everMood("my friends are here", MOOD_ANGRY),    "\"friends\" -> ANGRY");
   check(everMood("i have work to do", MOOD_ANGRY),      "\"work\" -> ANGRY");
@@ -113,8 +113,8 @@ int main() {
   check(everMood("so pretty", MOOD_BLUSH),              "\"pretty\" -> BLUSH");
 
   check(everMood("marry me", MOOD_BLUSH),               "\"marry me\" -> BLUSH");
-  check(everMood("you are hot", MOOD_SEDUCTIVE),        "\"hot\" -> SEDUCTIVE");
-  check(everMood("i like you", MOOD_SEDUCTIVE),         "\"i like you\" -> SEDUCTIVE");
+  check(everMood("you are hot", MOOD_CONFIDENT),        "\"hot\" -> CONFIDENT");
+  check(everMood("i like you", MOOD_CONFIDENT),         "\"i like you\" -> CONFIDENT");
 
   // --- whole-word matching: substrings must NOT fire ----------------------
   // Note: the fallback table deliberately spans several moods, so "which mood

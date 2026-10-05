@@ -55,7 +55,7 @@ static const RuleSet RULE_SETS[] = {
   { POSE_RULES,         POSE_RULE_COUNT         },
   { META_RULES,         META_RULE_COUNT         },   // she knows what she is
   { CONVERSATION_RULES, CONVERSATION_RULE_COUNT },   // "how are you", "ok", "lol"
-  { DEVOTION_RULES,     DEVOTION_RULE_COUNT     },   // love / marry / mommy / body
+  { DEVOTION_RULES,     DEVOTION_RULE_COUNT     },   // affection, nicknames, appearance
   { SMALLTALK_RULES,    SMALLTALK_RULE_COUNT    },   // "how are you", "good girl"
   { YEARNING_RULES,     YEARNING_RULE_COUNT      },   // phrases: "be together", "i wish"
   { TEASE_RULES,        TEASE_RULE_COUNT         },   // name-calling, taken as flirting

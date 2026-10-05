@@ -1,0 +1,24 @@
+{
+  "_comment": "Example mood map. Copy to mood_map.json (gitignored) and edit the keywords to match your own filenames. Each value is a substring that must appear in the (lowercased, punctuation-stripped) filename. Order matters: keep the most specific keywords first. Run scripts/convert_images.py --src DIR (or set src below) and it reports anything unmatched.",
+  "src": "~/Downloads/companion-art",
+  "moods": {
+    "HEART": "heart",
+    "CONFUSED": "confused",
+    "SLEEPING": "sleeping",
+    "SCHEMING": "scheming",
+    "BLANKET": "blanket",
+    "INTENSE": "intense",
+    "LEANING": "leaning",
+    "CASUAL": "casual",
+    "CLOSEUP": "closeup",
+    "PLAYFUL": "playful",
+    "ANGRY": "angry",
+    "CONFIDENT": "confident",
+    "POUT": "pout",
+    "BLUSH": "blush",
+    "PROUD": "proud",
+    "NO_INTERNET": "nointernet",
+    "SMUG": "smug",
+    "HAPPY": "happy"
+  }
+}

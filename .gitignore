@@ -7,6 +7,9 @@ config.h
 sprites.h
 photos.h
 
+# your own filename -> mood mapping (copy mood_map.json.example)
+mood_map.json
+
 # --- build output -------------------------------------------------------
 build/
 preview/
