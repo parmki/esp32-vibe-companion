@@ -2,11 +2,9 @@
 """
 Copy the active Wi-Fi SSID from NetworkManager straight into config.h.
 
-Why this exists: some SSIDs contain text that looks like a hyperlink, and the
-agent's tool-output filter replaces it with "a placeholder" - in the
-chat, and in shell output. The value is perfectly readable from NetworkManager
-though, so we never need to print it: this script reads it and writes it into
-config.h, reporting only a masked confirmation.
+Why this exists: the SSID is written into config.h without ever being printed, so
+the value never lands in terminal output, a log, or a screenshot. Only a masked
+confirmation (length + first and last character) is reported back.
 
 Usage:
     python3 scripts/set_ssid_from_nmcli.py            # active wifi connection
