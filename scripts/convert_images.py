@@ -2,12 +2,12 @@
 """
 Asset pipeline for esp32-vibe-companion.
 
-Reads the source images from ~/Downloads/companion-art/ (or --src DIR),
+Reads the source images from ~/Downloads/deskbot-art/ (or --src DIR),
 center-crops each to 135x240, converts to RGB565, and emits ../sprites.h with
 one PROGMEM array per mood plus an enum + accessor.
 
 Filename matching is intentionally forgiving: filenames in the wild contain
-typos ("geminigrilmadangry.jpg") and Unicode lookalike separators
+typos ("botmadangry.jpg") and Unicode lookalike separators
 ("spriteblush<U+2044>dizzy.jpg"), so we normalize every name to
 [lowercase ascii alphanumerics only] and then match the most specific
 keyword first (e.g. PROUD/"happypointingtoself" is tested before
@@ -236,7 +236,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=None,
                     help="directory of source images (default: from the map file, "
-                         "else ~/Downloads/companion-art)")
+                         "else ~/Downloads/deskbot-art)")
     ap.add_argument("--map", default=os.path.join(here, "mood_map.json"),
                     help="JSON mood mapping, optional src (see mood_map.json.example)")
     ap.add_argument("--out", default=os.path.join(here, "..", "sprites.h"))
@@ -250,7 +250,7 @@ def main():
 
     src_from_map = load_mood_map(args.map)
     if args.src is None:
-        args.src = src_from_map or os.path.expanduser("~/Downloads/companion-art")
+        args.src = src_from_map or os.path.expanduser("~/Downloads/deskbot-art")
 
     if not os.path.isdir(args.src):
         sys.exit(f"source directory not found: {args.src}")

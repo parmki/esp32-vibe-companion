@@ -1,4 +1,4 @@
-// personality.h -- keyword matching engine for the companion.
+// personality.h -- keyword matching engine for the desk bot.
 //
 // Deliberately free of TFT/serial/WiFi dependencies so it compiles and runs on
 // the host too (see test/personality_test.cpp). Included by the .ino.
@@ -51,24 +51,16 @@ static bool ruleMatches(const ResponseRule& r, const char* lower,
 struct RuleSet { const ResponseRule* rules; size_t count; };
 
 static const RuleSet RULE_SETS[] = {
-  { SCENARIO_RULES,     SCENARIO_RULE_COUNT     },   // your projects, habits, moods
-  { POSE_RULES,         POSE_RULE_COUNT         },
-  { META_RULES,         META_RULE_COUNT         },   // she knows what she is
-  { CONVERSATION_RULES, CONVERSATION_RULE_COUNT },   // "how are you", "ok", "lol"
-  { DEVOTION_RULES,     DEVOTION_RULE_COUNT     },   // affection, nicknames, appearance
-  { SMALLTALK_RULES,    SMALLTALK_RULE_COUNT    },   // "how are you", "good girl"
-  { YEARNING_RULES,     YEARNING_RULE_COUNT      },   // phrases: "be together", "i wish"
-  { TEASE_RULES,        TEASE_RULE_COUNT         },   // name-calling, taken as flirting
-  { DEMAND_RULES,       DEMAND_RULE_COUNT       },   // "answer me", "why", mood, sleep
-  { AFFECTION_RULES,    AFFECTION_RULE_COUNT    },
-  { POSSESSIVE_RULES, POSSESSIVE_RULE_COUNT },
-  { PRIDE_RULES,      PRIDE_RULE_COUNT      },
-  { FLUSTERED_RULES,  FLUSTERED_RULE_COUNT  },
+  { GREETING_RULES,     GREETING_RULE_COUNT     },   // hello, hi, good morning
+  { INFO_RULES,         INFO_RULE_COUNT         },   // time, date, status, help
+  { META_RULES,         META_RULE_COUNT         },   // what the device is
+  { TOPIC_RULES,        TOPIC_RULE_COUNT        },   // work, coffee, music, ...
+  { CONVERSATION_RULES, CONVERSATION_RULE_COUNT },   // ok, yes, lol, ...
 };
 static const int RULE_SET_COUNT = (int)(sizeof(RULE_SETS) / sizeof(RULE_SETS[0]));
 
-// Two passes: exact multi-word phrases win over single words, so
-// "good girl" -> PROUD even though "girl" alone -> ANGRY.
+// Two passes: exact multi-word phrases win over single words, so a phrase like
+// "what time" resolves before the single word "time".
 static const ResponseRule* pickRule(const char* input) {
   char lower[256];
   snprintf(lower, sizeof(lower), "%s", input);
@@ -100,8 +92,8 @@ static const ResponseRule* pickRule(const char* input) {
 }
 
 // Same matching, but hands back EVERY match so the caller can choose among the
-// variants of one keyword and reject one it just used. This is what makes
-// "good girl" said five times get five different answers.
+// variants of one keyword and reject one it just used. This is what stops the
+// same sentence coming back twice in a row.
 static const int MAX_COLLECTED = 32;
 static int collectRules(const char* input, const ResponseRule** out, int maxOut) {
   char lower[256];
@@ -131,7 +123,7 @@ static const ResponseRule* randomFallback() {
   return &FALLBACK_RULES[vibeRand() % FALLBACK_RULE_COUNT];
 }
 
-// Returns the mood she answers with; writes her line into *outLine.
+// Returns the mood it answers with; writes the line into *outLine.
 static Mood respondWith(const char* input, const char** outLine) {
   const ResponseRule* r = pickRule(input);
   if (r == nullptr) r = randomFallback();

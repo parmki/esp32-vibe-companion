@@ -1,21 +1,21 @@
 /*
- * esp32-vibe-companion  --  Gemini ("Gemi")
- * -----------------------------------------
- * A desk-resident, intensely attached anime companion on an ideaspark ESP32 dev
- * board (ESP32-WROOM-32 + 1.14" ST7789 135x240 TFT, CH340 USB).
+ * esp32-vibe-companion
+ * --------------------
+ * A small desk bot on an ideaspark ESP32 dev board (ESP32-WROOM-32 + 1.14"
+ * ST7789 135x240 TFT, CH340 USB). It shows a face and answers short messages.
  *
- *   - 14 full-screen RGB565 sprites in PROGMEM (sprites.h) -> needs `huge_app`.
- *   - 14 matching JPEGs in PROGMEM (photos.h), sent back over Telegram so the
+ *   - Full-screen RGB565 sprites in PROGMEM (sprites.h) -> needs `huge_app`.
+ *   - Matching JPEGs in PROGMEM (photos.h), sent back over Telegram so the
  *     chat matches the panel. No filesystem needed: sendPhotoByBinary() streams
  *     them from memory.
- *   - Personality: keyword rules + context tables (responses.h) evaluated by
- *     brain.h against live state -- how long you were gone, accumulated grudge,
- *     how many times you've said goodbye or pulled her cable.
- *   - State persists in NVS, so unplugging her does not reset her feelings.
- *   - NTP wall clock, so she knows 3am from 3pm.
- *   - Autonomous idle loop that ESCALATES the longer you ignore her.
+ *   - Replies: keyword rules + context tables (responses.h) evaluated by
+ *     brain.h against live state -- uptime, idle time, message counts, whether
+ *     power was cut, and any pending question.
+ *   - Counters persist in NVS across reboots.
+ *   - NTP wall clock, so the time replies are correct.
+ *   - Autonomous idle loop that reports status when nothing is happening.
  *   - Display keepalive: re-asserts the backlight and re-pushes the scene so a
- *     panel glitch cannot leave her stuck on a grey screen.
+ *     panel glitch cannot leave it stuck on a grey screen.
  *   - Wi-Fi watchdog.
  *
  * Required libraries: TFT_eSPI, UniversalTelegramBot, ArduinoJson.
@@ -47,7 +47,7 @@
 // ---------------------------------------------------------------- display cfg
 static const uint32_t SERIAL_BAUD   = 115200;
 static const uint16_t BAND_BG       = 0x1082;   // deep charcoal
-static const uint16_t BAND_ACCENT   = 0x5D9F;   // her hair blue
+static const uint16_t BAND_ACCENT   = 0x5D9F;   // accent blue
 static const uint16_t TEXT_COLOR    = 0xFFFF;
 static const int      FONT_ID       = 1;      // GLCD: 6px advance, 8px tall -> 20 chars/line
 static const int      LINE_H        = 10;     // 8px glyph + 2px leading
@@ -71,12 +71,12 @@ static const unsigned long BOT_POLL_MS = 1000;
 unsigned long lastBotPoll = 0;
 
 // ---------------------------------------------------------------------- state
-static const char* WIFI_LOST_LINE = "Connection lost... Why did you unplug me?!";
+static const char* WIFI_LOST_LINE = "Connection lost. Retrying every 10 seconds.";
 
 Mood          currentMood    = MOOD_HAPPY;
 String        currentText    = "";
-unsigned long lastUserAt     = 0;   // last inbound message (drives neglect tier)
-unsigned long lastIdleAt     = 0;   // when she last spoke unprompted
+unsigned long lastUserAt     = 0;   // last inbound message (drives idle tier)
+unsigned long lastIdleAt     = 0;   // when it last spoke unprompted
 bool          wifiWasUp      = false;
 unsigned long lastWifiRetry  = 0;
 unsigned long lastKeepalive  = 0;
@@ -115,7 +115,7 @@ static int wrapText(char* src, const char* out[], int maxLines) {
   return count;
 }
 
-// Draw sprite + optional speech band over her lower chest.
+// Draw sprite + optional speech band across the lower part of the panel.
 static void renderScene(Mood mood, const char* text) {
   tft.setSwapBytes(true);
   tft.pushImage(0, 0, SPRITE_W, SPRITE_H, getSprite(mood));
@@ -143,7 +143,7 @@ static void renderScene(Mood mood, const char* text) {
   }
 }
 
-// Single funnel for everything she says: updates state, draws, logs.
+// Single funnel for everything it says: updates state, draws, logs.
 static void speak(Mood mood, const String& text) {
   currentMood = mood;
   currentText = text;
@@ -171,7 +171,7 @@ static int   photoNextLen() {
 
 static void sendMoodPhoto(const String& chat_id, Mood mood) {
   if (!SEND_MOOD_PHOTOS) return;
-  if ((int)mood == lastPhotoMood) return;      // only when her face changes
+  if ((int)mood == lastPhotoMood) return;      // only when the face changes
 
   const MoodPhoto& p = MOOD_PHOTOS[(int)mood];
   g_photo    = p.data;
@@ -223,7 +223,7 @@ static void handleWifiLoss() {
   }
 }
 
-// The wall clock, so she knows what time it is where you are.
+// The wall clock, so the time replies are correct.
 static void startClock() {
   configTzTime(TIMEZONE_TZ, "pool.ntp.org", "time.google.com", "time.cloudflare.com");
 }
@@ -268,7 +268,7 @@ static void pollTelegram() {
 }
 
 // ===========================================================================
-//  Autonomous idle loop -- escalates with neglect
+//  Autonomous idle loop -- reports status when nothing is happening
 // ===========================================================================
 
 static void idleTick() {
@@ -316,7 +316,7 @@ static void displayKeepalive() {
 void setup() {
   Serial.begin(SERIAL_BAUD);
   delay(200);
-  Serial.println("\n== esp32-vibe-companion / Gemini \"Gemi\" ==");
+  Serial.println("\n== esp32-vibe-companion ==");
 
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);            // enable backlight
@@ -328,11 +328,11 @@ void setup() {
 
   randomSeed(esp_random());
   brainBegin();
-  Serial.printf("brain: grudge=%d msgsEver=%u unplugs=%u session=%u clock=%s\n",
-                B.grudge, (unsigned)B.messagesEver, (unsigned)B.unplugCount,
+  Serial.printf("brain: msgsEver=%u unplugs=%u session=%u clock=%s\n",
+                (unsigned)B.messagesEver, (unsigned)B.unplugCount,
                 (unsigned)B.sessionCount, clockValid() ? "ok" : "not yet");
 
-  speak(MOOD_HAPPY, "Booting up... I already missed you.");
+  speak(MOOD_HAPPY, "Booting up...");
   lastUserAt = lastIdleAt = lastKeepalive = lastReinit = millis();
 
   wifiWasUp = connectWifi(20000);
@@ -340,7 +340,7 @@ void setup() {
     secured_client.setInsecure();
     startClock();
 
-    // Give NTP a real chance so her first line can use the clock. 12 s is
+    // Give NTP a real chance so the first line can use the clock. 12 s is
     // generous: it normally lands in 1-5 s, but a cold DNS cache can push it
     // out, and a clock-less greeting reads worse than a slightly slower boot.
     unsigned long t0 = millis();
@@ -372,7 +372,7 @@ void loop() {
         wifiWasUp = true;
         lastPhotoMood = -1;
         startClock();
-        speak(MOOD_HAPPY, "You came back to me. I forgive you.");
+        speak(MOOD_HAPPY, "Reconnected.");
         lastUserAt = millis();
       }
     }

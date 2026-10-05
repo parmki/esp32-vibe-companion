@@ -12,19 +12,18 @@
 // From @BotFather on Telegram.
 #define BOT_TOKEN     "123456789:AAExampleTokenReplaceMe"
 
-// Optional: pin a single chat so she only ever answers you. Leave "" to
+// Optional: pin a single chat so the bot only answers you. Leave "" to
 // answer whoever messages the bot. Find yours via @userinfobot.
 #define OWNER_CHAT_ID ""
 
-// How long with no input before she gets lonely (milliseconds).
+// How long with no input before the bot speaks unprompted (milliseconds).
 #define IDLE_TIMEOUT_MS 150000UL
 
-// What she calls you.
+// A display name the bot can address you by (substituted for the %name token).
 #define YOUR_NAME "YourName"
 
-// Her wall clock (POSIX TZ string). Default is Central European with DST --
-// change it so she knows what time it is where you actually are.
-#define TIMEZONE_TZ "CET-1CEST,M3.5.0,M10.5.0/3"
+// Wall clock (POSIX TZ string). Default is UTC -- change it to your zone.
+#define TIMEZONE_TZ "UTC0"
 
-// Send her mood image back in the Telegram chat, whenever her face changes.
+// Send the mood image back in the Telegram chat whenever the face changes.
 #define SEND_MOOD_PHOTOS 1

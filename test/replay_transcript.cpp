@@ -15,17 +15,17 @@ static const char* TRANSCRIPT[] = {
   // greetings and small talk
   "hey", "how are you", "whats up", "good morning", "thanks",
   // the anti-repetition case: four identical inputs
-  "good girl", "good girl", "good girl", "good girl",
-  "bad girl", "you're the best",
-  // affection and the meta register
-  "i love you", "i love you", "are you real", "what are you",
-  "whats your name", "whats your mood",
-  // asking her opinion, then answering one of her questions
-  "do you like it here", "tired", "not really",
-  // refusal ladder: repeated goodbyes
-  "i have to go", "bye", "bye", "bye", "good night",
+  "hello", "hello", "hello", "hello",
+  "how are you", "what time", "status", "help",
+  // the meta register and facts
+  "who are you", "what are you", "are you real", "what can you do",
+  "uptime", "date",
+  // topics
+  "tired", "coffee", "work", "music",
+  // a farewell ladder
+  "i have to go", "bye", "good night",
   // coming back
-  "hi again", "i'm sorry", "i missed you",
+  "hi again",
 };
 
 int main() {

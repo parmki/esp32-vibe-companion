@@ -1,6 +1,6 @@
 {
   "_comment": "Example mood map. Copy to mood_map.json (gitignored) and edit the keywords to match your own filenames. Each value is a substring that must appear in the (lowercased, punctuation-stripped) filename. Order matters: keep the most specific keywords first. Run scripts/convert_images.py --src DIR (or set src below) and it reports anything unmatched.",
-  "src": "~/Downloads/companion-art",
+  "src": "~/Downloads/deskbot-art",
   "moods": {
     "HEART": "heart",
     "CONFUSED": "confused",

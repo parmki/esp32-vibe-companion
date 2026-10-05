@@ -113,10 +113,10 @@ def main():
         sys.exit(f"glcdfont.c not found at {DEFAULT_GLCDFONT}")
 
     samples = [
-        ("happy", "Hi hi hiii! I was counting the seconds."),
-        ("angry", "Friends. Plural. Explain yourself."),
-        ("blush", "Marry you? The ring is my RGB backlight."),
-        ("no_internet", "Connection lost... Why did you unplug me?!"),
+        ("happy", "Hello. What do you need?"),
+        ("sleeping", "Good night. I'll idle."),
+        ("confident", "The clock reads 3:06pm."),
+        ("no_internet", "Connection lost. Retrying every 10 seconds."),
     ]
 
     print(f"{'MOOD':<12} {'LINES':>5} {'BAND_Y':>6} {'BAND_H':>6}  WRAP")

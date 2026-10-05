@@ -54,7 +54,7 @@ cat > "$CUSTOM" <<'EOF'
 #define TFT_BACKLIGHT_ON HIGH
 
 // Only the fonts this project actually uses, to keep flash use down.
-#define LOAD_GLCD     // font 1 - what the companion renders text with
+#define LOAD_GLCD     // font 1 - what the bot renders text with
 #define LOAD_FONT2    // font 2 - used by the diagnostic sketches
 
 // Conservative: 27 MHz is plenty for a 135x240 panel and tolerant of wiring.

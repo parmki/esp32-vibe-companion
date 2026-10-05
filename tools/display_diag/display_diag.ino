@@ -5,7 +5,7 @@
  *   1. fillScreen() colours  -> does the panel accept SPI commands at all?
  *   2. drawString()          -> does text render?
  *   3. pushImage() from PROGMEM, with and without setSwapBytes -> does the
- *      sprite path (the thing the companion actually uses) work?
+ *      sprite path (the thing the firmware actually uses) work?
  *
  * Every step is announced on serial, so the user's description of the panel can
  * be matched line-for-line against the log. It also dumps TFT_eSPI's
@@ -148,12 +148,12 @@ void loop() {
   tft.drawString("this, SPI works", 6, 72, 1);
   delay(3000);
 
-  step("pushImage HAPPY sprite, setSwapBytes(true)  (expect anime girl)");
+  step("pushImage HAPPY sprite, setSwapBytes(true)  (expect correct colours)");
   tft.setSwapBytes(true);
   tft.pushImage(0, 0, SPRITE_W, SPRITE_H, getSprite(MOOD_HAPPY));
   delay(3000);
 
-  step("pushImage ANGRY sprite, setSwapBytes(FALSE) (expect girl, WRONG colours)");
+  step("pushImage ANGRY sprite, setSwapBytes(FALSE) (expect WRONG colours)");
   tft.setSwapBytes(false);
   tft.pushImage(0, 0, SPRITE_W, SPRITE_H, getSprite(MOOD_ANGRY));
   delay(3000);

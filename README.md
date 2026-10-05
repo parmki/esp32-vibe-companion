@@ -1,9 +1,8 @@
 # esp32-vibe-companion
 
-An ESP32 desk companion with a face and a personality: an 18-mood animated panel,
-and a text chat interface over Telegram. The mood engine, conversation state and
-memory all run **on the device** — there is no cloud inference, and the bot does
-not need an LLM to hold a conversation.
+A small desk bot on an ESP32: it shows a face on a 1.14" panel and answers short
+messages sent over Telegram. Replies, mood selection and a small amount of memory
+all run **on the device** — there is no cloud inference and no LLM involved.
 
 Built on an ideaspark ESP32-WROOM-32 board with an integrated 1.14" ST7789 IPS
 panel (135×240) and CH340 USB-serial.
@@ -13,7 +12,7 @@ panel (135×240) and CH340 USB-serial.
 ```
 esp32-vibe-companion/
 ├── esp32-vibe-companion.ino   # firmware: display, keepalive, NTP, Telegram, idle loop
-├── brain.h                    # state engine: mood, grudge, gaps, NVS memory, templates
+├── brain.h                    # reply pipeline: state, NVS memory, context tables
 ├── personality.h              # keyword matcher (host-testable, no Arduino deps)
 ├── responses.h                # the response data: keyword / context / Q&A tables
 ├── sprites.h                  # GENERATED — RGB565 PROGMEM sprites (not committed)
@@ -94,70 +93,64 @@ Copy `config.h.example` to `config.h` and fill it in. `config.h` is gitignored.
 | `BOT_TOKEN` | from @BotFather |
 | `OWNER_CHAT_ID` | optional; pins the bot to a single chat. Empty = answer anyone |
 | `IDLE_TIMEOUT_MS` | silence before the first unprompted line (default 150 s) |
-| `YOUR_NAME` | what the companion calls you, substituted for the `%name` token |
-| `TIMEZONE_TZ` | POSIX TZ string for the wall clock |
+| `YOUR_NAME` | a display name, substituted for the `%name` token |
+| `TIMEZONE_TZ` | POSIX TZ string for the wall clock (default UTC) |
 | `SEND_MOOD_PHOTOS` | also send the mood image back in chat |
 
 Secrets live only in `config.h`. `scripts/set_ssid_from_nmcli.py` can copy the
 active SSID out of NetworkManager without printing it.
 
-## Personality engine
+## Reply engine
 
 `personality.h` tokenizes incoming text and matches two kinds of keyword:
 
-1. **Phrases** (`"good girl"`, `"who built you"`, `"love you"`) — substring test, run first.
-2. **Single words** (`"her"`, `"work"`, `"smart"`) — whole-word only, so `"her"`
+1. **Phrases** (`"good morning"`, `"what time"`, `"who are you"`) — substring test, run first.
+2. **Single words** (`"time"`, `"work"`, `"help"`) — whole-word only, so `"her"`
    never fires inside `"there"` or `"brother"`.
 
-Phrase hits short-circuit the single-word pass, which is what makes
-`"good girl"` resolve to the pride register instead of being caught by `"girl"`.
-This pass also protects the emotional phrases: `"i wish we could be together"`
-answers that, rather than being diluted by `yes` and `together`.
+Phrase hits short-circuit the single-word pass, so `"what time"` resolves to the
+time reply instead of being caught by the bare word `"time"`.
 
 **All** matching rules are collected and one is chosen, so a keyword with several
-variants stays varied — a phrase can have one line or thirteen.
+variants stays varied — a keyword can have one line or twenty.
 
-| Trigger class | Moods | Examples |
+| Table | Purpose | Examples |
 |---|---|---|
-| Affection | happy, confident, blush | `love you`, `miss you`, `thank you` |
-| Attention | angry, pout | `friends`, `work`, `busy` |
-| Pride | proud, smug | `good girl`, `who built you` |
-| Playful | playful, blush | `brat`, `tease`, `hot` |
-| Fond | heart, blanket | `be together`, `i wish`, `stay forever` |
-| Blunt input | smug, angry, pout | `shut up`, `go away`, `stupid` |
+| `GREETING_RULES` | openings and sign-offs | `hi`, `good morning`, `thanks` |
+| `INFO_RULES` | facts it can give and questions about itself | `time`, `date`, `status`, `help`, `who are you` |
+| `META_RULES` | questions about the device | `robot`, `screen`, `memory`, `wifi` |
+| `TOPIC_RULES` | small talk | `work`, `coffee`, `music`, `tired` |
+| `CONVERSATION_RULES` | the short replies people send | `ok`, `yes`, `lol` |
 | no match | any | the fallback bank |
 
 ## Context and memory
 
-`brain.h` is the state machine that turns a matcher into something that feels
-like it remembers you. Every reply runs through it in priority order.
+`brain.h` is the pipeline that turns a matcher into something that reacts to
+state. Every reply runs through it in priority order.
 
 | Lever | Behaviour |
 |---|---|
-| **Gap reactions** | Reactions scale with how long you were gone: seconds → minutes → hours → days. A gap over 10 minutes *is* the message and outranks content. |
-| **Grudge (0–100)** | Rises with absence and farewells; falls with apologies, affection and flattery |
-| **Reconciliation** | Earned in stages — the first "sorry" thaws it, bare repeats get called out, and a high grudge takes several sincere messages |
-| **Relief beat** | Clear a high grudge and the tone cracks instead of gloating |
-| **Farewells refused** | Six escalation stages, six lines each, driven by a goodbye counter |
-| **Unplug tally** | Powered off uncleanly? It is counted and remembered |
-| **Pending questions** | The companion asks one of 50 questions and remembers **which**; your next message is handled as an answer to that question (181 question-specific replies) |
+| **Power-cut notice** | If the device was powered off uncleanly, it works out for how long and says so |
+| **Farewells** | Recognised by a key list, acknowledged from the farewell table |
+| **Gap reactions** | Long absences are acknowledged: seconds → minutes → hours → days |
+| **Pending questions** | It asks one of 20 questions and remembers **which**; your next message is handled as an answer to that question |
 | **Anti-repetition** | A ring of recently-used lines; selection sites avoid anything said recently |
-| **Repeat detection** | Notices when you send the same thing twice |
-| **Idle tiers** | Silence escalates at 2.5 min / 5 min / 15 min / 1 h / 6 h with different moods and lines |
-| **Wall clock** | NTP, so late-night lines differ from morning ones — including ordinary small talk |
+| **Repeat detection** | Notices when the same content word is sent twice |
+| **Idle tiers** | Silence escalates at 5 min / 15 min / 1 h / 6 h with different status lines |
+| **Wall clock** | NTP, so the time replies are correct |
 
-State persists in **NVS** (the `huge_app` layout includes a 20 KB `nvs`
-partition), so a power cycle does not reset accumulated state.
+Counters persist in **NVS** (the `huge_app` layout includes a 20 KB `nvs`
+partition), so a power cycle does not reset message counts or start counts.
 
-Lines support `%tokens`, substituted at render time: `%name`, `%t` (time gone),
-`%up` (uptime), `%n`, `%all`, `%u` (unplug count), `%clock`, `%last` (echo of your
-last content word), `%promise`.
+Lines support `%tokens`, substituted at render time: `%name`, `%t`, `%up`
+(uptime), `%n` (messages this session), `%all` (messages ever), `%u` (power cuts),
+`%clock`, `%last` (echo of your last content word).
 
 ## Response data
 
 `responses.h` holds the lines, split into tables by purpose: plain keyword
-registers, context tables evaluated against live state (gap, farewell, apology,
-idle tiers), and a question/answer bank. Around **1000 distinct lines** currently.
+registers, context tables evaluated against live state (gap, farewell, unplug,
+idle tiers), and a question/answer bank. Around **300 distinct lines** currently.
 
 Character rules live entirely in this file — nothing about tone is hardcoded in
 the firmware.
@@ -205,6 +198,7 @@ punctuation-stripped) filename. Put your own mapping in `mood_map.json`
 `src` directory) and it is picked up automatically; that file is gitignored, so
 your filenames stay out of the repository. Order matters — most specific first —
 and anything unmatched is reported rather than silently skipped.
+
 ## Memory budget
 
 18 sprites × 135 × 240 × 2 B = **1,166,400 B (~1.1 MB)** of PROGMEM, which does
@@ -224,7 +218,7 @@ output.
 
 ## Tests
 
-The matcher and state engine have no Arduino dependencies, so both compile and
+The matcher and pipeline have no Arduino dependencies, so both compile and
 run on the host — a bad keyword, a duplicate line or a malformed generated header
 fails in under a second instead of after a full Arduino build.
 
@@ -239,8 +233,8 @@ g++ -std=c++17 -DVIBE_HOST_TEST -I. -I.. -o brain_test       brain_test.cpp     
   answer pointing at a question that exists.
 - `brain_test` checks the **behaviour** by compiling the real pipeline: that
   repeated input does not repeat a line, that a clear keyword is not hijacked by
-  a pending question, that farewells are detected, and that a grudge is
-  eventually recoverable.
+  a pending question, that a genuine answer is handled, that farewells are
+  recognised, and that a power cut and a long gap are both acknowledged.
 
 The shims that make this possible are `test/Arduino.h` (a `String` over
 `std::string`, `PROGMEM`, a test-driven `millis()`) and `test/Preferences.h`
@@ -248,27 +242,27 @@ The shims that make this possible are `test/Arduino.h` (a `String` over
 
 ## Runtime behaviour
 
-- **Boot:** backlight on → NVS state loaded (grudge, session count, unplug tally)
-  → greeting → Wi-Fi → NTP (up to 12 s) → a time-aware greeting. If
+- **Boot:** backlight on → NVS state loaded (message counts, start count, last
+  seen) → greeting → Wi-Fi → NTP (up to 12 s) → a time-aware greeting. If
   `OWNER_CHAT_ID` is set it also greets you in chat.
-- **Chat:** polled once a second. Each text message goes through the brain and is
-  answered on the panel *and* in chat, followed by the mood image as a photo —
+- **Chat:** polled once a second. Each text message goes through the pipeline and
+  is answered on the panel *and* in chat, followed by the mood image as a photo —
   JPEG streamed straight out of PROGMEM via `sendPhotoByBinary()`, so no
   filesystem partition is needed. Sent only when the mood actually changes.
-- **Idle loop:** every `IDLE_TIMEOUT_MS` the companion speaks unprompted, and the
-  line escalates with total neglect.
+- **Idle loop:** every `IDLE_TIMEOUT_MS` the bot speaks unprompted; the line
+  escalates with how long the desk has been quiet.
 - **Display keepalive:** every 20 s the backlight is re-asserted and the current
   scene re-pushed; every 10 min the panel is fully re-initialised. A panel glitch
   therefore heals itself within 20 s instead of leaving a grey screen.
-- **Wi-Fi watchdog:** on link loss the companion switches to the `no_internet`
-  mood and retries every 10 s, announcing itself when the link returns.
+- **Wi-Fi watchdog:** on link loss it switches to the `no_internet` mood and
+  retries every 10 s, announcing itself when the link returns.
 
 ## Display notes
 
 Rotation is 0 (135 wide × 240 tall) so the portrait sprite fills the panel. The
-speech band is drawn bottom-anchored over the chest/shirt area: greedy word wrap
-into at most 6 lines, a `#1082` charcoal fill, and an accent rule across the top
-of the band. The face region (roughly y < 150) is never overdrawn.
+speech band is drawn bottom-anchored: greedy word wrap into at most 6 lines, a
+`#1082` charcoal fill, and an accent rule across the top of the band. The face
+region (roughly y < 150) is never overdrawn.
 
 ### Font choice is load-bearing
 
