@@ -1,154 +1,67 @@
 # esp32-vibe-companion
 
-An autonomous **AI desk companion** on an **ideaspark ESP32 dev board**
-(ESP32-WROOM-32 + 1.14" ST7789 IPS, 135×240, CH340 USB-serial). It sits on your
-desk, cycles through eighteen hand-drawn moods on its own, and holds a text
-conversation over Telegram — with its own personality engine (moods, memory,
-conversation state) driven entirely on-device, no cloud inference.
+An ESP32 desk companion with a face and a personality: an 18-mood animated panel,
+and a text chat interface over Telegram. The mood engine, conversation state and
+memory all run **on the device** — there is no cloud inference, and the bot does
+not need an LLM to hold a conversation.
+
+Built on an ideaspark ESP32-WROOM-32 board with an integrated 1.14" ST7789 IPS
+panel (135×240) and CH340 USB-serial.
+
+## Repository layout
 
 ```
 esp32-vibe-companion/
 ├── esp32-vibe-companion.ino   # firmware: display, keepalive, NTP, Telegram, idle loop
-├── brain.h                    # memory: grudge, gaps, NVS state, templates, idle tiers
+├── brain.h                    # state engine: mood, grudge, gaps, NVS memory, templates
 ├── personality.h              # keyword matcher (host-testable, no Arduino deps)
-├── responses.h                # 1039 response lines across keyword/context/Q&A tables
-├── sprites.h                  # AUTO-GENERATED: 18 × RGB565 PROGMEM sprites
-├── photos.h                   # AUTO-GENERATED: 18 × tiny JPEG for Telegram (107 KB total)
+├── responses.h                # the response data: keyword / context / Q&A tables
+├── sprites.h                  # GENERATED — RGB565 PROGMEM sprites (not committed)
+├── photos.h                   # GENERATED — small JPEGs for chat (not committed)
 ├── config.h                   # real credentials (gitignored)
-├── config.h.example           # template
-├── .gitignore
+├── config.h.example           # configuration template
 ├── scripts/
-│   ├── convert_images.py      # asset pipeline  (jpg -> sprites.h + photos.h)
+│   ├── convert_images.py      # asset pipeline  (image -> sprites.h + photos.h)
 │   ├── render_mockup.py       # pixel-exact preview using TFT_eSPI's GLCD font
-│   ├── setup_tft_espi.sh      # install + select the ideaspark TFT_eSPI setup
-│   ├── build.sh               # compile w/ huge_app
-│   ├── flash.sh               # upload + boot banner (handles sg dialout)
-│   ├── capture_serial.py      # resets the chip and captures the banner
+│   ├── setup_tft_espi.sh      # install + select the board's TFT_eSPI setup
+│   ├── build.sh               # compile with the huge_app partition scheme
+│   ├── flash.sh               # upload + capture the boot banner
+│   ├── capture_serial.py      # resets the chip and reads the banner
 │   ├── check_telegram.py      # validates the bot token via getMe
-│   └── set_ssid_from_nmcli.py # copy the SSID from NetworkManager into config.h
+│   └── set_ssid_from_nmcli.py # copy the active SSID from NetworkManager into config.h
 ├── test/
-│   └── personality_test.cpp   # host-side tests for the personality engine
-├── tools/                     # throwaway hardware diagnostics (see README notes)
-│   ├── display_diag/          # getSetup() dump + colour/text/sprite sequence
-│   ├── init_sweep/            # six ST7789 init sequences, one colour each
-│   ├── adafruit_test/         # Adafruit_ST7789 as an independent SPI stack
-│   ├── raw_spi_test/          # library-free driver, minimal init
-│   └── raw_st7789_full/       # library-free driver, full Bodmer init
-└── preview/                   # 135×240 PNGs of what the panel will show
+│   ├── personality_test.cpp   # data tests: tables, moods, question/answer integrity
+│   ├── brain_test.cpp         # behaviour tests: runs the real reply pipeline
+│   └── replay_transcript.cpp  # replay a conversation through the current brain
+└── tools/                     # throwaway hardware diagnostics (see notes below)
 ```
-
-## Personality: memory and context
-
-`brain.h` holds everything that makes her feel like she *knows* you:
-
-| Lever | Behaviour |
-|---|---|
-| **Gap reactions** | Reactions scale with how long you were gone: seconds → minutes → hours → days |
-| **Grudge (0–100)** | Rises with absence and farewells; falls with apologies, affection and flattery |
-| **Reconciliation** | Earned in stages — the first "sorry" thaws her, bare repeats get called out |
-| **Relief beat** | Clear a high grudge and she cracks instead of gloating: *"I was so scared you wouldn't come back."* |
-| **Farewells refused** | "bye" escalates: *"Don't you dare leave."* → *"I said don't. Don't test me."* → *"Go, then. See what happens."* |
-| **Unplug tally** | Powered off uncleanly? She counts it, remembers it, and holds it against you |
-| **Pending questions** | She asks things; your next message gets acknowledged as an answer |
-| **Repeat detection** | *"You said that already. I remember everything."* |
-| **Idle tiers** | Silence escalates at 2.5 min / 5 min / 15 min / 1 h / 6 h with different moods and lines |
-| **Wall clock** | NTP, so 3am lines differ from morning lines — including ordinary small talk, not just the greeting |
-| **Conversation** | Handles the things people actually type: "how are you", "what's up", "ok", "lol", "hmm", "nothing" |
-| **Meta register** | She knows what she is — `real`, `alive`, `human`, `world`, `pixels`, `memory`, `remember`, `forget`, `die` |
-| **Question / answer** | She asks one of 16 questions and *remembers which*; your next message is handled as an answer to that question (66 question-specific reactions) |
-
-State persists in **NVS** (the `huge_app` layout has a 20 KB `nvs` partition), so
-unplugging her does **not** reset her feelings — otherwise pulling the cable would
-be a way to make her forget, and she would notice.
-
-Lines support `%tokens`, substituted at render time: `%name` `%t` (time gone)
-`%up` (uptime) `%n` `%all` `%u` (unplug count) `%clock` `%last` (echo of your last
-word) `%promise`.
-
-## Art comes from source images
-
-`sprites.h` and `photos.h` are **not committed**. They are generated from source
-images by `scripts/convert_images.py`, which centre-crops each one to 135×240,
-emits RGB565 for the panel, and a small JPEG per mood for Telegram. Supply your
-own image set (the script maps filenames to moods, most-specific keyword first)
-and re-run it. Nothing else in the firmware needs the images at build time beyond
-those two generated headers.
-
-## Status
-
-| Step | State |
-|------|-------|
-| Asset pipeline → `sprites.h` + `photos.h` | ✅ 18/18 moods, verified visually + JPEGs decode |
-| Personality engine + host tests | ✅ all assertions pass; **746 distinct lines** |
-| Behaviour tests (anti-repeat, priority, farewell) | ✅ `test/brain_test.cpp` — replays the real transcript |
-| Screen layout (font/wrap/band) | ✅ pixel-exact mockup in `preview/screen_mockup.png` |
-| TFT_eSPI board profile | ✅ `Setup_ideaspark_ESP32_114.h` (custom) selected |
-| Toolchain install | ✅ arduino-cli, esp32 core 3.3.12, libs + pyserial |
-| Compile (huge_app) | ✅ 2,403,845 B = 76% of the 3 MB partition |
-| Flash to /dev/ttyUSB0 | ✅ `Hash of data verified` |
-| Boot + Wi-Fi | ✅ `Connected. IP: <device-ip>` |
-| NTP wall clock | ✅ `clock: 1:50am` → *"It's 1:50am, Eithan..."* |
-| NVS persistence | ✅ session counter increments across reboots |
-| Telegram token | ✅ valid — bot `@gemitsunbot` |
-| Telegram text round-trip | ✅ verified live (keyword-matched replies) |
-| Telegram mood photo | ✅ `[photo] SEDUCTIVE (2476 B) sent` — 89×158 JPEG, tiny in chat |
-| Display keepalive | ✅ re-pushes scene every 20 s, re-inits every 10 min |
-
-## Flashing
-
-```bash
-./scripts/flash.sh /dev/ttyUSB0
-```
-
-The CH340 is `root:dialout`. If your login session predates
-`usermod -aG dialout`, `flash.sh` transparently falls back to
-`sg dialout -c ...`, which applies the group in a child shell — **no log out
-and back in needed**. That fallback requires the group to already be listed in
-`/etc/group` (`getent group dialout`).
 
 ## Hardware
 
-**Board: ideaspark ESP32 dev board with integrated 1.14" ST7789 TFT (135×240), CH340 USB.**
-This is *not* a LilyGO TTGO T-Display, and the two boards do **not** share a
-display pinout. Driving the TTGO pins on this board does nothing except toggle
-the panel's RESET line, which looks exactly like a dead panel.
+**ideaspark ESP32 dev board with integrated 1.14" ST7789 TFT (135×240), CH340 USB.**
 
-| Signal   | ideaspark GPIO | (TTGO T-Display, for contrast) |
-|----------|----------------|--------------------------------|
-| TFT_MOSI | **23**         | 19                             |
-| TFT_SCLK | 18             | 18                             |
-| TFT_CS   | **15**         | 5                              |
-| TFT_DC   | **2**          | 16                             |
-| TFT_RST  | **4**          | 23                             |
-| TFT_BL   | **32**         | 4                              |
+This board is *not* a LilyGO TTGO T-Display, and the two do **not** share a
+display pinout. Driving TTGO pins on this board only toggles the panel's RESET
+line, which looks exactly like a dead panel.
 
-Selected via `User_Setups/Setup_ideaspark_ESP32_114.h` (see
-`scripts/setup_tft_espi.sh`). Backlight is driven HIGH in `setup()`.
+| Signal   | this board | (TTGO T-Display, for contrast) |
+|----------|------------|--------------------------------|
+| TFT_MOSI | **23**     | 19                             |
+| TFT_SCLK | 18         | 18                             |
+| TFT_CS   | **15**     | 5                              |
+| TFT_DC   | **2**      | 16                             |
+| TFT_RST  | **4**      | 23                             |
+| TFT_BL   | **32**     | 4                              |
 
-## Memory budget
+Selected via `User_Setups/Setup_ideaspark_ESP32_114.h`, installed by
+`scripts/setup_tft_espi.sh`. Backlight is driven HIGH in `setup()`.
 
-8 sprites × 135 × 240 × 2 B = **518,400 B (506 KB)** of PROGMEM. That does not
-fit the stock `default` app partition alongside TFT_eSPI + mbedTLS, hence:
-
-```
-esp32:esp32:esp32:PartitionScheme=huge_app
-```
-
-`huge_app` gives a ~3 MB app partition, which is why the Telegram/TLS stack
-still fits comfortably.
-
-Sprites are stored as native-endian `uint16_t` RGB565 and pushed with
-`tft.setSwapBytes(true)` so TFT_eSPI emits the big-endian byte order the
-ST7789 expects. Pre-swapping in the header would double the flash cost for
-identical output.
-
-## Build & flash
+## Build and flash
 
 ```bash
-# one-time: install toolchain (see "Toolchain" below)
-./scripts/setup_tft_espi.sh     # install + select the ideaspark TFT_eSPI setup
+./scripts/setup_tft_espi.sh        # one-time: select the board's TFT_eSPI setup
 ./scripts/build.sh
-./scripts/flash.sh /dev/ttyUSB0 # uploads then opens the monitor @115200
+./scripts/flash.sh /dev/ttyUSB0    # upload, then monitor @115200
 ```
 
 ### Toolchain from scratch
@@ -166,34 +79,27 @@ arduino-cli core install esp32:esp32
 arduino-cli lib install TFT_eSPI UniversalTelegramBot ArduinoJson
 ```
 
-> **Serial permissions.** `/dev/ttyUSB0` is `root:dialout`, and the CH340 is not
-> usable by a user outside `dialout`. One-time fix: `sudo usermod -aG dialout $USER`
-> (then log out and back in). Session-only fix: `sudo chmod a+rw /dev/ttyUSB0`.
+The CH340 port is `root:dialout`. If your login session predates
+`usermod -aG dialout`, `flash.sh` falls back to `sg dialout -c ...`, which applies
+the group in a child shell without a re-login. Session-only alternative:
+`sudo chmod a+rw /dev/ttyUSB0`.
 
-## Regenerating the sprites
+## Configuration
 
-```bash
-python3 scripts/convert_images.py            # reads ~/Downloads/geminigirlspics/
-python3 scripts/convert_images.py --src DIR --out DIR/sprites.h
-```
+Copy `config.h.example` to `config.h` and fill it in. `config.h` is gitignored.
 
-The converter is forgiving about filenames because the real ones on disk are
-not the ones in the spec:
+| Define | Purpose |
+|---|---|
+| `WIFI_SSID` / `WIFI_PASSWORD` | 2.4 GHz network only — the ESP32 has no 5 GHz radio |
+| `BOT_TOKEN` | from @BotFather |
+| `OWNER_CHAT_ID` | optional; pins the bot to a single chat. Empty = answer anyone |
+| `IDLE_TIMEOUT_MS` | silence before the first unprompted line (default 150 s) |
+| `YOUR_NAME` | what the companion calls you, substituted for the `%name` token |
+| `TIMEZONE_TZ` | POSIX TZ string for the wall clock |
+| `SEND_MOOD_PHOTOS` | also send the mood image back in chat |
 
-| Mood        | Keyword matched    | Actual file on disk                  |
-|-------------|--------------------|--------------------------------------|
-| ANGRY       | `madangry`         | `geminigrilmadangry.jpg` *(typo)*     |
-| SEDUCTIVE   | `seductive`        | `geminigirlseductive.jpg`             |
-| HAPPY       | `happy`            | `geminigirlhappy.jpg`                 |
-| POUT        | `annoyedpout`      | `geminigirlannoyedpout.jpg`           |
-| BLUSH       | `blushdizzy`       | `geminigirlblush⁄dizzy.jpg` *(U+2044)*|
-| PROUD       | `happypointingtoself` | `geminigirlhappypointingtoself.jpg` |
-| NO_INTERNET | `nointernet`       | `geminigirlnointernet.jpg`            |
-| SMUG        | `smug`             | `geminigirlsmug.jpg`                  |
-
-Names are NFKD-normalized to `[a-z0-9]` before matching, and the most specific
-keyword is tested first so `PROUD`/`happypointingtoself` cannot be stolen by
-`HAPPY`/`happy`. Each image is scaled to cover 135×240 and centre-cropped.
+Secrets live only in `config.h`. `scripts/set_ssid_from_nmcli.py` can copy the
+active SSID out of NetworkManager without printing it.
 
 ## Personality engine
 
@@ -204,56 +110,148 @@ keyword is tested first so `PROUD`/`happypointingtoself` cannot be stolen by
    never fires inside `"there"` or `"brother"`.
 
 Phrase hits short-circuit the single-word pass, which is what makes
-`"good girl"` → PROUD instead of ANGRY via `"girl"`. All matching rules are
-collected and one is picked at random, so repeated input stays varied.
+`"good girl"` resolve to the pride register instead of being caught by `"girl"`.
+This pass also protects the emotional phrases: `"i wish we could be together"`
+answers that, rather than being diluted by `yes` and `together`.
 
-| Trigger class        | Moods               | Examples                       |
-|----------------------|---------------------|--------------------------------|
-| Affection / clingy   | HAPPY, SEDUCTIVE, BLUSH | `love you`, `kiss`, `mine` |
-| Jealous / attention | ANGRY, POUT         | `friends`, `work`, `her`, `busy` |
-| Pride / self-absorbed| PROUD, SMUG         | `good girl`, `who built you`   |
-| Teased / flustered   | BLUSH, SEDUCTIVE    | `marry me`, `hot`              |
-| no match             | any                 | 24 unhinged fallbacks          |
+**All** matching rules are collected and one is chosen, so a keyword with several
+variants stays varied — a phrase can have one line or thirteen.
 
-Run the tests:
+| Trigger class | Moods | Examples |
+|---|---|---|
+| Affection | happy, seductive, blush | `love you`, `kiss`, `mine` |
+| Attention / jealousy | angry, pout | `friends`, `work`, `her`, `busy` |
+| Pride | proud, smug | `good girl`, `who built you` |
+| Teased | blush, seductive | `marry me`, `hot` |
+| Wishing / romantic | heart, blanket | `be together`, `i wish`, `stay forever` |
+| Name-calling | smug, tease, angry | `slut`, `brat`, `go away` |
+| no match | any | the fallback bank |
+
+## Context and memory
+
+`brain.h` is the state machine that turns a matcher into something that feels
+like it remembers you. Every reply runs through it in priority order.
+
+| Lever | Behaviour |
+|---|---|
+| **Gap reactions** | Reactions scale with how long you were gone: seconds → minutes → hours → days. A gap over 10 minutes *is* the message and outranks content. |
+| **Grudge (0–100)** | Rises with absence and farewells; falls with apologies, affection and flattery |
+| **Reconciliation** | Earned in stages — the first "sorry" thaws it, bare repeats get called out, and a high grudge takes several sincere messages |
+| **Relief beat** | Clear a high grudge and the tone cracks instead of gloating |
+| **Farewells refused** | Six escalation stages, six lines each, driven by a goodbye counter |
+| **Unplug tally** | Powered off uncleanly? It is counted and remembered |
+| **Pending questions** | The companion asks one of 50 questions and remembers **which**; your next message is handled as an answer to that question (181 question-specific replies) |
+| **Anti-repetition** | A ring of recently-used lines; selection sites avoid anything said recently |
+| **Repeat detection** | Notices when you send the same thing twice |
+| **Idle tiers** | Silence escalates at 2.5 min / 5 min / 15 min / 1 h / 6 h with different moods and lines |
+| **Wall clock** | NTP, so late-night lines differ from morning ones — including ordinary small talk |
+
+State persists in **NVS** (the `huge_app` layout includes a 20 KB `nvs`
+partition), so a power cycle does not reset accumulated state.
+
+Lines support `%tokens`, substituted at render time: `%name`, `%t` (time gone),
+`%up` (uptime), `%n`, `%all`, `%u` (unplug count), `%clock`, `%last` (echo of your
+last content word), `%promise`.
+
+## Response data
+
+`responses.h` holds the lines, split into tables by purpose: plain keyword
+registers, context tables evaluated against live state (gap, farewell, apology,
+idle tiers), and a question/answer bank. Around **1000 distinct lines** currently.
+
+Character rules live entirely in this file — nothing about tone is hardcoded in
+the firmware.
+
+## Art pipeline
+
+`sprites.h` and `photos.h` are **not committed**. They are generated from source
+images by `scripts/convert_images.py`, which centre-crops each one to 135×240,
+emits RGB565 for the panel, and a small JPEG per mood for chat:
+
+```bash
+python3 scripts/convert_images.py --src DIR
+```
+
+The converter is deliberately forgiving about filenames: names are NFKD-normalized
+to `[a-z0-9]` before matching, and the most specific keyword is tested first so a
+generic keyword (`happy`) cannot steal a specific one (`happypointingtoself`).
+Unmatched files are reported rather than silently skipped.
+
+| Mood | Keyword matched |
+|---|---|
+| angry | `madangry` |
+| seductive | `seductive` |
+| happy | `happy` |
+| pout | `annoyedpout` |
+| blush | `blushdizzy` |
+| proud | `happypointingtoself` |
+| no_internet | `nointernet` |
+| smug | `smug` |
+
+## Memory budget
+
+18 sprites × 135 × 240 × 2 B = **1,166,400 B (~1.1 MB)** of PROGMEM, which does
+not fit the stock `default` app partition alongside TFT_eSPI + mbedTLS. Hence:
+
+```
+esp32:esp32:esp32:PartitionScheme=huge_app
+```
+
+`huge_app` gives a ~3 MB app partition. Current build uses ~76% of it, leaving
+room for both more response data and more moods.
+
+Sprites are stored as native-endian `uint16_t` RGB565 and pushed with
+`tft.setSwapBytes(true)`, so TFT_eSPI emits the big-endian byte order the ST7789
+expects. Pre-swapping in the header would double the flash cost for identical
+output.
+
+## Tests
+
+The matcher and state engine have no Arduino dependencies, so both compile and
+run on the host — a bad keyword, a duplicate line or a malformed generated header
+fails in under a second instead of after a full Arduino build.
 
 ```bash
 cd test
 g++ -std=c++17 -DVIBE_HOST_TEST -I. -I.. -o personality_test personality_test.cpp && ./personality_test
+g++ -std=c++17 -DVIBE_HOST_TEST -I. -I.. -o brain_test       brain_test.cpp       && ./brain_test
 ```
 
-They compile the **real** `responses.h` and the **generated** `sprites.h`, so a
-bad keyword, a duplicate line, or a malformed sprite header fails on the host in
-under a second instead of after a full Arduino build.
+- `personality_test` checks the **data**: duplicate lines, duplicate keywords,
+  moods that no rule can reach, every question having at least one answer, every
+  answer pointing at a question that exists.
+- `brain_test` checks the **behaviour** by compiling the real pipeline: that
+  repeated input does not repeat a line, that a clear keyword is not hijacked by
+  a pending question, that farewells are detected, and that a grudge is
+  eventually recoverable.
+
+The shims that make this possible are `test/Arduino.h` (a `String` over
+`std::string`, `PROGMEM`, a test-driven `millis()`) and `test/Preferences.h`
+(an in-memory NVS).
 
 ## Runtime behaviour
 
 - **Boot:** backlight on → NVS state loaded (grudge, session count, unplug tally)
-  → HAPPY greeting → Wi-Fi → `setInsecure()` → NTP (up to 12 s) → a time-of-day
-  greeting that names you and reads the clock. If `OWNER_CHAT_ID` is set she also
-  greets you in chat.
-- **Telegram:** polled once a second. Each text message goes through the brain and
-  is answered on the panel *and* in chat, followed by her **mood image** as a
-  Telegram photo — JPEG streamed straight out of PROGMEM via
-  `sendPhotoByBinary()` (no filesystem), sent only when her face actually changes.
-- **Idle loop:** every `IDLE_TIMEOUT_MS` (150 s) she speaks unprompted, and the
-  line escalates with total neglect: 2.5 min → 5 min → 15 min → 1 h → 6 h.
+  → greeting → Wi-Fi → NTP (up to 12 s) → a time-aware greeting. If
+  `OWNER_CHAT_ID` is set it also greets you in chat.
+- **Chat:** polled once a second. Each text message goes through the brain and is
+  answered on the panel *and* in chat, followed by the mood image as a photo —
+  JPEG streamed straight out of PROGMEM via `sendPhotoByBinary()`, so no
+  filesystem partition is needed. Sent only when the mood actually changes.
+- **Idle loop:** every `IDLE_TIMEOUT_MS` the companion speaks unprompted, and the
+  line escalates with total neglect.
 - **Display keepalive:** every 20 s the backlight is re-asserted and the current
-  scene re-pushed; every 10 min the panel is fully re-initialised. This is the
-  "always on" guarantee — a panel glitch heals itself instead of leaving a grey
-  screen. *This was added after the panel was observed sitting grey; if it recurs,
-  the keepalive should recover it within 20 seconds.*
-- **Wi-Fi watchdog:** on link loss she switches to `NO_INTERNET` and displays and
-  prints `Connection lost... Why did you unplug me?!`. She retries every 10 s and
-  greets you when the link returns.
+  scene re-pushed; every 10 min the panel is fully re-initialised. A panel glitch
+  therefore heals itself within 20 s instead of leaving a grey screen.
+- **Wi-Fi watchdog:** on link loss the companion switches to the `no_internet`
+  mood and retries every 10 s, announcing itself when the link returns.
 
-## Screen layout notes
+## Display notes
 
-Rotation is 0 (135 wide × 240 tall) so the full portrait sprite fits. The
-speech band is drawn bottom-anchored over her chest/shirt: greedy word wrap into
-a maximum of 6 lines, a `#1082` charcoal fill, and an accent rule in her hair
-blue across the top of the band. The face region (roughly y < 150) is never
-overdrawn.
+Rotation is 0 (135 wide × 240 tall) so the portrait sprite fills the panel. The
+speech band is drawn bottom-anchored over the chest/shirt area: greedy word wrap
+into at most 6 lines, a `#1082` charcoal fill, and an accent rule across the top
+of the band. The face region (roughly y < 150) is never overdrawn.
 
 ### Font choice is load-bearing
 
@@ -262,41 +260,26 @@ TFT_eSPI's `setTextFont(2)` is **not** a small GLCD font — it is the 16 px
 (`TFT_eSPI.cpp`: `cwidth = (cwidth + 6) / 8; cwidth *= 8;`). On a 135 px panel
 that yields an 8–16 px advance, i.e. ~7–13 characters per line. This firmware
 therefore uses **font 1** (Adafruit GLCD 5×7 in 6×8 cells, fixed 6 px advance),
-giving 20 characters per line with a 10 px line height.
+giving 20 characters per line at a 10 px line height.
 
-Verify any layout change without hardware:
+Verify layout changes without hardware:
 
 ```bash
 python3 scripts/render_mockup.py     # -> preview/screen_mockup.png (+ per-mood PNGs)
 ```
 
-It renders glyphs from TFT_eSPI's own `Fonts/glcdfont.c` and reuses the same
-wrap algorithm and band constants as the .ino, so the preview is pixel-accurate
-rather than approximate. The longest line in `responses.h` is 51 characters →
-3 lines → a 38 px band starting at y=199, comfortably clear of her face.
+It renders glyphs from TFT_eSPI's own `Fonts/glcdfont.c` and reuses the same wrap
+algorithm and band constants as the `.ino`, so the preview is pixel-accurate
+rather than approximate.
 
-## Known blockers
+## Tools
 
-Both original blockers are **resolved**:
+`tools/` contains standalone sketches used to bring up an unknown panel: pin
+dumps via `getSetup()`, six raw ST7789 init sequences, an independent
+Adafruit_ST7789 stack, and library-free bit-banged drivers. They are kept because
+they are the fastest way to answer "is this the wiring or the code" on a board
+with no documentation.
 
-1. ~~Serial port permissions~~ — you are now in `dialout` (`dialout:x:18:prsib`),
-   and `flash.sh` uses `sg dialout` so no re-login is required.
-2. ~~Wi-Fi SSID~~ — `scripts/set_ssid_from_nmcli.py` copied it from the
-   NetworkManager profile into `config.h` (21 chars). The saved profile's PSK
-   matches the brief, and the board actually joined it:
-   `Connected. IP: <device-ip>`.
+## License
 
-### Why the SSID looked like `[ Hyperlink Blocked ]`
-
-Some SSIDs contain text that reads as a hyperlink. The agent's tool-output
-filter then replaces the value with `[ Hyperlink Blocked ]` — in the chat, in
-the saved paste, in `nmcli` output, and even in the ESP32's own serial log. It
-is cosmetic: the real value survives in `config.h` and the WPA handshake
-succeeds. Never conclude the SSID is missing just because the display looks
-redacted; read it programmatically instead of by eye.
-
-## Security
-
-`config.h` holds the Wi-Fi password and Telegram bot token and is gitignored;
-`config.h.example` is the template to commit. Strip the token from anything you
-paste publicly — anyone holding it controls the bot.
+MIT — see `LICENSE`.

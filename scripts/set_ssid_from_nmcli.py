@@ -3,7 +3,7 @@
 Copy the active Wi-Fi SSID from NetworkManager straight into config.h.
 
 Why this exists: some SSIDs contain text that looks like a hyperlink, and the
-agent's tool-output filter replaces it with "[ Hyperlink Blocked ]" - in the
+agent's tool-output filter replaces it with "a placeholder" - in the
 chat, and in shell output. The value is perfectly readable from NetworkManager
 though, so we never need to print it: this script reads it and writes it into
 config.h, reporting only a masked confirmation.

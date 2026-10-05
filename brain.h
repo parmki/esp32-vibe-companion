@@ -22,7 +22,7 @@
 #include "personality.h"   // tokenize(), toLowerInPlace(), vibeRand()
 
 #ifndef YOUR_NAME
-#define YOUR_NAME "Eithan"
+#define YOUR_NAME "Friend"
 #endif
 
 static const char* const PREF_NS = "vibe";

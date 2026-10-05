@@ -2,13 +2,13 @@
 """
 Asset pipeline for esp32-vibe-companion.
 
-Reads the source images from ~/Downloads/geminigirlspics/ (or --src DIR),
+Reads the source images from ~/Downloads/companion-art/ (or --src DIR),
 center-crops each to 135x240, converts to RGB565, and emits ../sprites.h with
 one PROGMEM array per mood plus an enum + accessor.
 
 Filename matching is intentionally forgiving: filenames in the wild contain
 typos ("geminigrilmadangry.jpg") and Unicode lookalike separators
-("geminigirlblush<U+2044>dizzy.jpg"), so we normalize every name to
+("spriteblush<U+2044>dizzy.jpg"), so we normalize every name to
 [lowercase ascii alphanumerics only] and then match the most specific
 keyword first (e.g. PROUD/"happypointingtoself" is tested before
 HAPPY/"happy", otherwise the generic keyword would steal it).
@@ -59,7 +59,7 @@ MOOD_ORDER = [m for m, _ in MOOD_RULES]
 
 
 def normalize(name):
-    """'geminigirlblush\u2044dizzy.jpg' -> 'geminigirlblushdizzyjpg'"""
+    """'spriteblush\u2044dizzy.jpg' -> 'spriteblushdizzyjpg'"""
     name = unicodedata.normalize("NFKD", name)
     name = name.encode("ascii", "ignore").decode("ascii")
     name = name.lower()
@@ -216,7 +216,7 @@ def emit_photos(images, path, scale=0.66, quality=78):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=os.path.expanduser("~/Downloads/geminigirlspics"))
+    ap.add_argument("--src", default=os.path.expanduser("~/Downloads/companion-art"))
     ap.add_argument("--out", default=os.path.join(here, "..", "sprites.h"))
     ap.add_argument("--photos-out", default=os.path.join(here, "..", "photos.h"))
     ap.add_argument("--telegram-scale", type=float, default=0.66,
