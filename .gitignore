@@ -1,68 +1,23 @@
-# Prerequisites
-*.d
+# --- secrets ------------------------------------------------------------
+config.h
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# --- generated art ------------------------------------------------------
+# sprites.h / photos.h are built from source images by
+# scripts/convert_images.py, so they are not committed. Supply your own art.
+sprites.h
+photos.h
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-*.so.*
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Build directories
+# --- build output -------------------------------------------------------
 build/
-Build/
-build-*/
+preview/
+*.bin
+*.elf
+*.map
 
-# CMake generated files
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-install_manifest.txt
-compile_commands.json
+# --- host test binaries -------------------------------------------------
+test/personality_test
+test/brain_test
+test/replay
+test/probe
+test/probe2
 
-# Temporary files
-*.tmp
-*.log
-*.bak
-*.swp
-
-# vcpkg
-vcpkg_installed/
-
-# debug information files
-*.dwo
-
-# test output & cache
-Testing/
-.cache/
